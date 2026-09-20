@@ -1,0 +1,117 @@
+/*
+ * Theme token values.
+ *
+ * Phase 0 defines one theme, `paper` -- the neutral fallback. Phase 2 adds the
+ * twelve month themes plus birthday and holiday themes, each as one block of
+ * the same shape. Adding a theme touches this file and the registry, nothing
+ * else.
+ *
+ * Structure per theme:
+ *   [data-theme="x"]                     -> light values
+ *   [data-theme="x"][data-scheme="dark"] -> dark overrides only
+ *
+ * `data-theme` and `data-scheme` are stamped onto <html> on the SERVER, so the
+ * first byte of HTML already carries the right theme. There is no flash.
+ */
+
+:root {
+  /* Shape and depth. Themes may override these to feel softer or sharper. */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.25rem;
+
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.04);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.06), 0 12px 32px rgb(0 0 0 / 0.08);
+
+  /* Paper character. Themes dial these up for grainier seasons. */
+  --grain-opacity: 0.035;
+  --vignette-strength: 0.04;
+
+  /* Fonts. `--display-font` is reassigned per theme; the other two are
+     deliberately constant across every theme in the product. */
+  --ui-font: var(--font-ui-sans), ui-sans-serif, system-ui, sans-serif;
+  --body-font: var(--font-body-serif), ui-serif, Georgia, serif;
+  --display-font: var(--font-body-serif), ui-serif, Georgia, serif;
+}
+
+/* --------------------------------------------------------------------------
+ * paper -- the neutral fallback theme.
+ *
+ * Used before a profile exists (auth screens), and as the base every other
+ * theme overrides. Warm off-white, ink that is never pure black.
+ * ------------------------------------------------------------------------ */
+
+[data-theme="paper"] {
+  --color-scheme: light;
+
+  --surface: oklch(98.4% 0.006 85);
+  --surface-raised: oklch(99.5% 0.004 85);
+  --surface-sunken: oklch(95.6% 0.008 85);
+
+  --ink: oklch(24% 0.012 65);
+  --ink-muted: oklch(48% 0.012 65);
+  --ink-faint: oklch(68% 0.01 65);
+
+  --accent: oklch(52% 0.09 45);
+  --accent-ink: oklch(98% 0.005 85);
+  --accent-soft: oklch(92% 0.03 55);
+
+  --line: oklch(89% 0.008 75);
+  --overlay: oklch(24% 0.012 65 / 0.35);
+
+  --danger: oklch(52% 0.16 25);
+  --danger-ink: oklch(98% 0.005 85);
+}
+
+/* Dark values are declared twice on purpose, and this pattern is the contract
+ * every theme follows:
+ *   - the @media block covers "system" (the user has not chosen a scheme)
+ *   - the [data-scheme="dark"] block lets an explicit choice win
+ * The @media block is guarded against [data-scheme="light"] so choosing light
+ * on a dark OS actually works.
+ */
+@media (prefers-color-scheme: dark) {
+  [data-theme="paper"]:not([data-scheme="light"]) {
+    --color-scheme: dark;
+
+    --surface: oklch(19% 0.008 70);
+    --surface-raised: oklch(23% 0.009 70);
+    --surface-sunken: oklch(15% 0.007 70);
+
+    --ink: oklch(92% 0.008 80);
+    --ink-muted: oklch(72% 0.009 80);
+    --ink-faint: oklch(52% 0.008 80);
+
+    --accent: oklch(72% 0.09 55);
+    --accent-ink: oklch(18% 0.01 70);
+    --accent-soft: oklch(33% 0.035 55);
+
+    --line: oklch(31% 0.008 70);
+    --overlay: oklch(10% 0.006 70 / 0.55);
+
+    --danger: oklch(65% 0.15 25);
+    --danger-ink: oklch(18% 0.01 70);
+  }
+}
+
+[data-theme="paper"][data-scheme="dark"] {
+  --color-scheme: dark;
+
+  --surface: oklch(19% 0.008 70);
+  --surface-raised: oklch(23% 0.009 70);
+  --surface-sunken: oklch(15% 0.007 70);
+
+  --ink: oklch(92% 0.008 80);
+  --ink-muted: oklch(72% 0.009 80);
+  --ink-faint: oklch(52% 0.008 80);
+
+  --accent: oklch(72% 0.09 55);
+  --accent-ink: oklch(18% 0.01 70);
+  --accent-soft: oklch(33% 0.035 55);
+
+  --line: oklch(31% 0.008 70);
+  --overlay: oklch(10% 0.006 70 / 0.55);
+
+  --danger: oklch(65% 0.15 25);
+  --danger-ink: oklch(18% 0.01 70);
+}

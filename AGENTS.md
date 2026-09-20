@@ -7,3 +7,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+# General rules
+- Ask the following question to have a good understanding of the task
+- Never commit any changes until user specificly ask for it
+- Naver chnage package.json file directly, if you want to install something use pnpm i package name.
+- User experince is our top priority, so always consider the user experince when making decisions.
+- You can use Shadcn UI components for the website.

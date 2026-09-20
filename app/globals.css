@@ -1,26 +1,141 @@
 @import "tailwindcss";
+@import "../lib/themes/tokens.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/*
+ * The token contract.
+ *
+ * Every colour, radius and shadow in the app resolves through one of these
+ * custom properties. A raw hex value in a component is a bug -- it is a value
+ * that no theme can ever change.
+ *
+ * Themes (Phase 2) redefine the raw `--surface`, `--ink`, ... properties under
+ * `[data-theme="..."]` selectors in lib/themes/tokens.css. Nothing below this
+ * comment needs to change when a theme is added.
+ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Surfaces: the paper. */
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+
+  /* Ink: everything written on the paper. */
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+
+  /* The theme's voice -- today's marker, written days, mood dots.
+     Exposed as `brand` rather than `accent` because shadcn/ui already uses
+     `accent` for subtle hover surfaces. Theme files still write `--accent`. */
+  --color-brand: var(--accent);
+  --color-brand-ink: var(--accent-ink);
+  --color-brand-soft: var(--accent-soft);
+
+  /* Structure. */
+  --color-line: var(--line);
+  --color-overlay: var(--overlay);
+  --color-danger: var(--danger);
+  --color-danger-ink: var(--danger-ink);
+
+  /* Type. `--font-display` is swapped per theme; `--font-body` never is, so
+     the writing surface reads the same every day of the year. */
+  --font-body: var(--body-font);
+  --font-display: var(--display-font);
+  --font-ui: var(--ui-font);
+
+  --radius-page: var(--radius-lg);
+  --radius-card: var(--radius-md);
+  --radius-chip: var(--radius-sm);
+
+  --shadow-page: var(--shadow-soft);
+  --shadow-raised: var(--shadow-lift);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/*
+ * shadcn/ui bridge.
+ *
+ * shadcn components are written against a fixed set of token names. Rather
+ * than let them ship their own palette -- which would ignore our themes
+ * entirely -- we point each of their names at one of ours. The result: every
+ * Dialog, Popover and Select is themed by October automatically, with no
+ * per-component work.
+ *
+ * Note `accent`: in shadcn's vocabulary that means "subtle hover surface", not
+ * "brand colour", so it maps to our sunken surface. Our brand colour is
+ * `--color-brand`.
+ */
+@theme inline {
+  --color-background: var(--surface);
+  --color-foreground: var(--ink);
+
+  --color-card: var(--surface-raised);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--surface-raised);
+  --color-popover-foreground: var(--ink);
+
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--accent-ink);
+  --color-secondary: var(--surface-sunken);
+  --color-secondary-foreground: var(--ink);
+
+  --color-muted: var(--surface-sunken);
+  --color-muted-foreground: var(--ink-muted);
+  --color-accent: var(--surface-sunken);
+  --color-accent-foreground: var(--ink);
+
+  --color-destructive: var(--danger);
+  --color-destructive-foreground: var(--danger-ink);
+
+  --color-border: var(--line);
+  --color-input: var(--line);
+  --color-ring: var(--accent);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-lg);
+}
+
+/*
+ * Safe areas. The app is installed to a home screen and runs standalone, so
+ * the notch and the home indicator are ours to deal with, not the browser's.
+ */
+@utility pad-safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+@utility pad-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@layer base {
+  html {
+    /* Tells the browser which scheme the themed tokens are currently painting,
+       so form controls and scrollbars match. Set per theme in tokens.css. */
+    color-scheme: var(--color-scheme);
+    -webkit-text-size-adjust: 100%;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    background-color: var(--surface);
+    color: var(--ink);
+    font-family: var(--body-font);
+    /* iOS bounce past the top of a diary page looks broken, not playful. */
+    overscroll-behavior-y: none;
+  }
+
+  /* Never trap a keyboard user. Themed, so focus stays visible on dark paper. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
