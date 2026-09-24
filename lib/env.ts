@@ -8,21 +8,18 @@ import { z } from "zod";
  * Only this module reads `process.env`. Everything else imports from here, so a
  * missing or malformed variable fails loudly at boot instead of at 2am in a
  * Server Action. Marked `server-only`: secrets must never reach the client.
- *
- * Variables that are not needed until a later phase are optional here and
- * asserted at their point of use, so Phase 0 boots with only a database.
  */
 const schema = z.object({
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
 
-  BETTER_AUTH_SECRET: z.string().min(32).optional(),
+  BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.url().default("http://localhost:3000"),
 
-  GOOGLE_CLIENT_ID: z.string().optional(),
-  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_CLIENT_ID: z.string().min(1),
+  GOOGLE_CLIENT_SECRET: z.string().min(1),
 
-  RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().optional(),
+  RESEND_API_KEY: z.string().min(1),
+  EMAIL_FROM: z.string().min(1),
 
   NODE_ENV: z
     .enum(["development", "test", "production"])
