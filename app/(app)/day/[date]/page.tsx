@@ -4,13 +4,11 @@ import { notFound, redirect } from "next/navigation";
 import { DayScreen } from "@/components/editor/day-screen";
 import { EntryBody } from "@/components/editor/entry-body";
 import { PageFrame } from "@/components/layout/page-frame";
-import { civilNow, formatLongDate, parseIso, todayIso } from "@/lib/date/civil";
+import { formatLongDate, parseIso, todayIso } from "@/lib/date/civil";
 import { getEntry, neighborWrittenDays } from "@/lib/data/entries";
 import { ensureProfile } from "@/lib/data/profile";
 import { EMPTY_DOC } from "@/lib/editor/document";
-import { getActiveTheme, getRequestTheme } from "@/lib/themes/active";
-import { resolveTheme } from "@/lib/themes/resolve";
-import { themeGreeting } from "@/lib/themes/greeting";
+import { getActiveTheme, getDayTheme, getRequestTheme } from "@/lib/themes/active";
 
 export default async function DayPage({ params }: { params: Promise<{ date: string }> }) {
   const { date } = await params;
@@ -38,23 +36,8 @@ export default async function DayPage({ params }: { params: Promise<{ date: stri
   const neighbors = await neighborWrittenDays(date);
   const active = await getActiveTheme();
   const chrome = await getRequestTheme();
-  const now = civilNow(profile.timezone);
-  const dayTheme = resolveTheme(
-    {
-      birthdayMonth: profile.birthdayMonth,
-      birthdayDay: profile.birthdayDay,
-      themeMode: "auto",
-      lockedThemeId: null,
-      holidayCalendars: profile.holidayCalendars,
-    },
-    civil,
-  );
-  const occasion =
-    date === today
-      ? active.greeting
-      : dayTheme.occasion
-        ? themeGreeting(dayTheme, active.name, now.hour)
-        : null;
+  const dayTheme = date === today ? active : await getDayTheme(civil);
+  const occasion = date === today ? active.greeting : dayTheme.theme.occasion ? dayTheme.greeting : null;
 
   return (
     <PageFrame>
@@ -85,6 +68,7 @@ export default async function DayPage({ params }: { params: Promise<{ date: stri
       </nav>
 
       <DayScreen
+        key={`${date}:${entry?.updatedAt ?? "missing"}`}
         entryDate={date}
         prompt={date === today ? active.theme.emptyPrompt : "Nothing written this day."}
         hasEntry={entry !== null}

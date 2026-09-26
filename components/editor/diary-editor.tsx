@@ -4,7 +4,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -35,6 +35,7 @@ export function DiaryEditor({
   const [conflict, setConflict] = useState<SavedEntry | null | "missing">(null);
   const [toolbar, setToolbar] = useState(false);
   const [pending, setPending] = useState<"clear" | "delete" | null>(null);
+  const [, startSaveTransition] = useTransition();
 
   const updatedAt = useRef(initial.updatedAt);
   const latest = useRef<{ body: DiaryDoc; mood: Mood | null }>({
@@ -42,11 +43,11 @@ export function DiaryEditor({
     mood: initial.mood,
   });
   const dirty = useRef(false);
-  const running = useRef(false);
+  const running = useRef<Promise<boolean> | null>(null);
   const again = useRef(false);
   const idleTimer = useRef<number | null>(null);
   const maxTimer = useRef<number | null>(null);
-  const flushRef = useRef<() => Promise<void>>(async () => {});
+  const flushRef = useRef<() => Promise<boolean>>(async () => true);
   const scheduleRef = useRef<() => void>(() => {});
   const blocked = useRef(false);
 
@@ -100,62 +101,84 @@ export function DiaryEditor({
     idleTimer.current = window.setTimeout(() => void flushRef.current(), 800);
   }
 
-  async function flush() {
+  function saveInTransition(
+    input: Parameters<typeof saveEntryAction>[0],
+  ): Promise<Awaited<ReturnType<typeof saveEntryAction>>> {
+    return new Promise((resolve, reject) => {
+      startSaveTransition(async () => {
+        try {
+          resolve(await saveEntryAction(input));
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+  }
+
+  async function flush(): Promise<boolean> {
     clearTimers();
-    if (blocked.current) return;
-    if (!dirty.current && !again.current) return;
+    if (blocked.current) return false;
+    if (!dirty.current && !again.current) return true;
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       setStatus("offline");
-      return;
+      return false;
     }
     if (running.current) {
       again.current = true;
-      return;
+      await running.current;
+      return !dirty.current && !blocked.current;
     }
 
-    running.current = true;
-    try {
-      do {
-        again.current = false;
-        if (!dirty.current) break;
-        dirty.current = false;
-        setStatus("saving");
-        const body = latest.current.body;
-        const moodNow = latest.current.mood;
-        const seen = updatedAt.current;
-        const result = await saveEntryAction({
-          entryDate,
-          bodyJson: body,
-          mood: moodNow,
-          updatedAt: seen,
-        });
+    const operation = (async () => {
+      try {
+        do {
+          again.current = false;
+          if (!dirty.current) break;
+          dirty.current = false;
+          setStatus("saving");
+          const body = latest.current.body;
+          const moodNow = latest.current.mood;
+          const seen = updatedAt.current;
+          const result = await saveInTransition({
+            entryDate,
+            bodyJson: body,
+            mood: moodNow,
+            updatedAt: seen,
+          });
 
-        if (result.status === "saved") {
-          updatedAt.current = result.updatedAt;
-          setWordCount(result.wordCount);
-          setStatus(dirty.current ? "saving" : "saved");
-          continue;
-        }
+          if (result.status === "saved") {
+            updatedAt.current = result.updatedAt;
+            setWordCount(result.wordCount);
+            setStatus(dirty.current ? "saving" : "saved");
+            continue;
+          }
 
+          dirty.current = true;
+          if (result.status === "conflict") {
+            blocked.current = true;
+            setConflict(result.entry ?? "missing");
+            setStatus("conflict");
+            break;
+          }
+          setStatus(
+            typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "error",
+          );
+          break;
+        } while (dirty.current || again.current);
+      } catch {
         dirty.current = true;
-        if (result.status === "conflict") {
-          blocked.current = true;
-          setConflict(result.entry ?? "missing");
-          setStatus("conflict");
-          break;
-        }
-        if (result.status === "future") {
-          setStatus("error");
-          break;
-        }
-        setStatus(typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "error");
-        break;
-      } while (dirty.current || again.current);
-    } catch {
-      dirty.current = true;
-      setStatus(typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "error");
+        setStatus(
+          typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "error",
+        );
+      }
+      return !dirty.current && !blocked.current;
+    })();
+
+    running.current = operation;
+    try {
+      return await operation;
     } finally {
-      running.current = false;
+      running.current = null;
     }
   }
 
@@ -167,6 +190,7 @@ export function DiaryEditor({
   useEffect(() => {
     function onLeave(event: BeforeUnloadEvent) {
       if (!dirty.current) return;
+      void flushRef.current();
       event.preventDefault();
       event.returnValue = "";
     }
@@ -221,7 +245,11 @@ export function DiaryEditor({
 
   async function onClear() {
     setPending("clear");
-    await flush();
+    const flushed = await flush();
+    if (!flushed) {
+      setPending(null);
+      return;
+    }
     const result = await clearEntryAction({ entryDate, updatedAt: updatedAt.current });
     setPending(null);
     if (result.status === "saved") {
@@ -249,6 +277,11 @@ export function DiaryEditor({
 
   async function onDelete() {
     setPending("delete");
+    const flushed = await flush();
+    if (!flushed) {
+      setPending(null);
+      return;
+    }
     const result = await deleteEntryAction({ entryDate, updatedAt: updatedAt.current });
     setPending(null);
     if (result.status === "saved") {
@@ -270,7 +303,7 @@ export function DiaryEditor({
       : status === "saved"
         ? "Saved"
         : status === "offline"
-          ? "Not saved — you're offline"
+          ? "Not saved -- you're offline"
           : status === "error"
             ? "Not saved"
             : status === "conflict"
@@ -356,7 +389,9 @@ export function DiaryEditor({
             type="button"
             className="font-ui"
             onClick={() => {
-              void flush().then(() => onDone());
+              void flush().then((saved) => {
+                if (saved) onDone();
+              });
             }}
           >
             Done
@@ -367,7 +402,7 @@ export function DiaryEditor({
           description="The words and mood are emptied. The day stays in your diary as a blank page."
           confirmLabel="Clear page"
           pending={pending === "clear"}
-          pendingLabel="Clearing…"
+          pendingLabel="Clearing..."
           onConfirm={() => void onClear()}
           trigger={
             <Button type="button" variant="outline" className="font-ui">
@@ -380,7 +415,7 @@ export function DiaryEditor({
           description="The page is removed. This can't be undone."
           confirmLabel="Delete page"
           pending={pending === "delete"}
-          pendingLabel="Deleting…"
+          pendingLabel="Deleting..."
           destructive
           onConfirm={() => void onDelete()}
           trigger={

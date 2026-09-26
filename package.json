@@ -13,8 +13,11 @@
     "db:auth": "better-auth generate --config scripts/auth-schema.config.ts --output lib/db/auth-schema.ts",
     "typecheck": "tsc --noEmit",
     "db:verify": "tsx scripts/verify-migrations.ts",
-    "test": "tsx --test lib/themes/resolve.test.ts lib/themes/shell.test.ts lib/date/civil.test.ts lib/editor/document.test.ts lib/backup/format.test.ts lib/search/snippet.test.ts lib/rate-limit.test.ts",
-    "audit:isolation": "tsx scripts/isolation-audit.ts"
+    "test": "tsx --test lib/themes/resolve.test.ts lib/themes/shell.test.ts lib/date/civil.test.ts lib/editor/document.test.ts lib/backup/format.test.ts lib/search/snippet.test.ts lib/rate-limit.test.ts lib/pwa/cache-policy.test.ts",
+    "audit:isolation": "tsx scripts/isolation-audit.ts",
+    "audit:behavioral": "tsx scripts/behavioral-isolation.ts",
+    "check:contrast": "tsx scripts/check-theme-contrast.ts",
+    "check:budgets": "tsx scripts/check-budgets.ts"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",

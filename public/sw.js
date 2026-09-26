@@ -1,4 +1,6 @@
-const CACHE = "diary-shell-v1";
+importScripts("/sw-policy.js");
+
+const CACHE = "diary-shell-v2";
 const SHELL = ["/offline", "/icons/192", "/icons/512"];
 
 self.addEventListener("install", (event) => {
@@ -21,23 +23,18 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const request = event.request;
-  if (request.method !== "GET") return;
-
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith("/api/")) return;
 
-  if (request.mode === "navigate") {
+  if (
+    request.method === "GET" &&
+    url.origin === self.location.origin &&
+    request.mode === "navigate"
+  ) {
     event.respondWith(fetch(request).catch(() => caches.match("/offline")));
     return;
   }
 
-  const cacheable =
-    url.pathname.startsWith("/_next/static/") ||
-    url.pathname.startsWith("/icons/") ||
-    url.pathname === "/offline";
-
-  if (!cacheable) return;
+  if (!self.DiaryCachePolicy.shouldCache(request, url, self.location.origin)) return;
 
   event.respondWith(
     caches.open(CACHE).then(async (cache) => {

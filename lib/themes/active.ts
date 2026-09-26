@@ -80,6 +80,12 @@ export const getActiveTheme = cache(async (): Promise<ActiveTheme> => {
   return themeFrom(context, { kind: "day", date: context.today });
 });
 
+/** Theme and greeting for a specific diary day, honoring lock and wear. */
+export async function getDayTheme(date: ThemeContext["today"]): Promise<ActiveTheme> {
+  const context = await loadThemeContext();
+  return themeFrom(context, { kind: "day", date });
+}
+
 /**
  * The theme stamped on `<html>` for this request.
  * Calendar months dress as the month being viewed. A locked or worn theme

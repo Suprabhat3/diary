@@ -68,7 +68,7 @@ function lightVars(theme) {
 
   --ink: ${oklch(24, Math.min(c, 0.02), h)};
   --ink-muted: ${oklch(46, Math.min(c, 0.018), h)};
-  --ink-faint: ${oklch(66, Math.min(c, 0.012), h)};
+  --ink-faint: ${oklch(60, Math.min(c, 0.012), h)};
 
   --accent: ${oklch(accentL, ac, ah)};
   --accent-ink: ${oklch(98, 0.006, h)};
@@ -122,7 +122,7 @@ const blocks = themes
 }
 
 @media (prefers-color-scheme: dark) {
-  [data-theme="${theme.id}"]:not([data-scheme="light"]) {${darkVars(theme)}
+  [data-theme="${theme.id}"] {${darkVars(theme)}
   }
 }
 

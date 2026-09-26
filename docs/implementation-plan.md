@@ -2,8 +2,8 @@
 
 Companion to [`requirements.md`](./requirements.md). That document says **what** the product is. This one records **how** we build it, **which** technologies we chose, and **why** — so that a decision made today is not re-argued in three months.
 
-- **Status:** approved, not yet started
-- **Date:** 2026-09-17
+- **Status:** implemented through Phase 9; Phase 10 automation complete, final artwork deferred
+- **Date:** 2026-09-26
 - **Stack baseline:** Next.js 16.3.5 · React 19.2.8 · TypeScript 5 · Tailwind CSS 4 · pnpm 10.13.1
 
 > **Note on Next.js 16.** This project is on Next 16, which renamed and changed several APIs. Conventions used throughout this plan: `proxy.ts` (not `middleware.ts`), `await params` / `await searchParams`, `await cookies()`, `refresh()` from `next/cache`. Always read `node_modules/next/dist/docs/` before writing code that touches framework APIs.
@@ -23,7 +23,7 @@ Each decision is recorded as: what we chose, why, what we rejected, and what it 
 - The core invariant of this product — *exactly one page per user per calendar date* — is a `UNIQUE (user_id, entry_date)` constraint. The database enforces it; no application code can violate it. In a document store this becomes a race-prone application concern.
 - The three access patterns are all relational and all indexed cheaply: fetch one page by `(user_id, date)`, fetch a month's worth of dates, and full-text search a body. Postgres does all three natively.
 - Full-text search is built in (`tsvector` + GIN index). No Algolia, no Meilisearch, no second system to secure and keep in sync with a *private* diary.
-- Neon's serverless driver works over HTTP, which suits Next.js server runtimes and avoids connection-pool exhaustion.
+- Neon's serverless driver uses a cached WebSocket pool. The pool supports the interactive transactions required by import and account deletion, and is reused across development hot reloads.
 - Postgres is portable. If Neon ever disappoints, the schema moves to Supabase, RDS, or a VPS unchanged.
 
 **Rejected:**
@@ -69,7 +69,7 @@ Each decision is recorded as: what we chose, why, what we rejected, and what it 
 - **Lexical** — lighter and faster, but more assembly required and a thinner extension ecosystem.
 - **Plain textarea + Markdown** — the calmest and cheapest, and genuinely tempting. Rejected because the requirements explicitly specify rich text with a formatting toolbar.
 
-**Cost:** ~100 KB gzipped on the writing route only. Mitigated by loading the editor exclusively on `/today` and `/day/[date]` (never on Calendar or Search) and by `dynamic()` import below the fold of the first paint.
+**Cost:** currently ≤150 KB gzipped for the dynamically loaded writing-route chunks, enforced by `pnpm check:budgets`. The editor loads exclusively on `/today` and `/day/[date]` (never on Calendar or Search) via `dynamic()` import.
 
 ### D4 — Data access: Server Components + Server Actions, behind a Data Access Layer
 
@@ -135,34 +135,34 @@ Calendar month view themes to the **month being viewed**; Today themes to **toda
 
 **Why CSS custom properties + `data-theme`:**
 
-- The theme is resolved on the server and stamped onto `<html data-theme="october" data-scheme="dark">` in the root layout. There is **no flash of the wrong theme** — the first byte of HTML already carries the right one. A client-side context provider cannot promise this.
+- The theme is resolved on the server and stamped onto `<html data-theme="october">` in the root layout. There is **no flash of the wrong theme** — the first byte of HTML already carries the right one. Color scheme intentionally follows the system through `prefers-color-scheme`; there is no saved light/dark preference or `data-scheme` stamp.
 - Adding a thirteenth theme is one CSS block plus one registry entry. Zero component changes.
 - Tailwind 4's `@theme` reads the same custom properties, so utilities and components stay in sync.
 
 **Why raster art (AVIF/WebP) rather than pure CSS:** we chose the higher visual ceiling deliberately. CSS gradients and SVG grain can be tasteful but always read as *graphic*; real illustrated seasonal artwork is what makes October feel like October. Discipline that buys back the cost:
 
 - Budget: **≤ 120 KB per variant** at 1600 px wide, AVIF with WebP fallback.
-- Light and dark variant per theme, served via `next/image`.
-- A tiny base64 `blurDataURL` in the manifest so the writing surface never pops in.
+- Light and dark variants per theme, selected by `<picture>`.
+- CSS-generated art remains visible while assets load. A `next/image`/`blurDataURL` pipeline is deferred until final fixed-dimension artwork exists.
 - Only the active theme's art is ever requested; it is `priority`-loaded on Today because it *is* the page.
 - Until final art exists, each theme ships a layered-CSS placeholder generated from its own tokens. **Theme work is not blocked on artwork.**
 
 **Why shared body font + per-theme display font:** the writing surface should feel familiar every day — you should not have to re-learn how your own diary reads each month. One excellent body serif everywhere; the *date, month title, and greeting* carry the theme's personality. This also keeps the font budget to one small display face per theme.
 
-Mechanically: all display faces are declared with `next/font` and `preload: false`, each exposing its own CSS variable; `[data-theme="x"] { --font-display: var(--font-display-x) }` selects one. Browsers fetch only the `@font-face` actually referenced. Because the active theme is known on the server, the root layout emits an explicit `<link rel="preload">` for that one face.
+Mechanically: all display faces are declared with `next/font` and `preload: false`, each exposing its own CSS variable; `[data-theme="x"] { --font-display: var(--font-display-x) }` selects one. Browsers fetch only the `@font-face` actually referenced, avoiding a preload for every theme.
 
 ### D7 — PWA: manifest + minimal service worker
 
-**Decision:** `app/manifest.ts` for installability; a hand-written service worker that caches **only** the app shell and static assets.
+**Decision:** `app/manifest.ts` for installability; a hand-written service worker that caches **only** the public offline fallback and static assets.
 
 **Why:** the requirements state online is required and offline writing is out of scope. A full offline layer would be both wasted work and a privacy regression — caching diary pages leaves a user's writing on disk in the browser cache. The service worker's job is app-shell speed and an honest offline screen, nothing more.
 
-**Explicitly cached:** shell HTML, JS/CSS, fonts, theme art, icons.
-**Explicitly never cached:** anything from `/api/auth`, any Server Action response, any entry content.
+**Explicitly cached:** offline fallback, JS/CSS, fonts, theme art, icons.
+**Explicitly never cached:** navigation HTML, anything from `/api`, any Server Action response, any entry content.
 
 `theme_color` and the iOS status-bar meta follow the active theme's color where the platform allows.
 
-**Rejected:** Serwist / full offline caching (over-engineered and privacy-adverse here); manifest-only (loses the shell cache that makes launch feel instant).
+**Rejected:** Serwist / full offline caching (over-engineered and privacy-adverse here); manifest-only (loses the honest offline fallback and static-asset cache).
 
 ### D8 — UI components: shadcn/ui, selectively
 
@@ -343,6 +343,10 @@ Scripts (added with `pnpm pkg set`, never by editing `package.json`):
 | `pnpm db:auth` | Regenerate `lib/db/auth-schema.ts` from Better Auth |
 | `pnpm db:studio` | Drizzle Studio |
 | `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm audit:isolation` | Static session-boundary and server-only audit |
+| `pnpm audit:behavioral` | Two-user behavioral privacy checks in PGlite |
+| `pnpm check:contrast` | Contrast gates for every theme in both system schemes |
+| `pnpm check:budgets` | Editor-route bundle and final-art size budgets |
 
 `db:verify` exists because the schema carries product rules that a migration file alone cannot prove: one page per user per day, a bare `date` column, mood values, and cascade-on-delete. It asserts each of them, including behaviourally — a duplicate page and an unknown mood must actually be *rejected*, and deleting a user must actually remove their entries. It runs in CI and needs nothing configured.
 
@@ -356,7 +360,7 @@ Better Auth server + client, Drizzle adapter, email/password, Google OAuth, Rese
 
 ### Phase 2 — Theme engine
 
-`ThemeManifest` type, registry, `resolveTheme` + unit tests, holiday tables, CSS token blocks for 12 months + birthday + holidays, `next/font` display-face wiring with per-theme preload, `ThemeShell` and `ThemeArt` components, server-side `data-theme` stamping.
+`ThemeManifest` type, registry, `resolveTheme` + unit tests, holiday tables, CSS token blocks for 12 months + birthday + holidays, `next/font` display-face wiring, `ThemeShell` and `ThemeArt` components, server-side `data-theme` stamping.
 
 Ships with **CSS-generated placeholder art**; final artwork drops in later without code changes.
 
@@ -398,7 +402,9 @@ JSON and Markdown export, JSON import with preview and conflict rules, cascade a
 
 ### Phase 10 — Art, polish, and hardening
 
-Final theme artwork replacing placeholders. Accessibility audit (contrast in **every** theme × both schemes, labelled icon buttons, focus order, desktop keyboard). Performance pass (route JS budgets, art preloading, Lighthouse PWA). Rate limiting on auth and import. Cross-user isolation audit: a scripted check that every DAL function and every Server Action rejects when the session does not own the row.
+Automated hardening is complete: contrast checks cover **every** theme × both system schemes, route JS and art budgets run in CI, auth/import are rate-limited, service-worker cache policy is tested, and static plus two-user behavioral isolation audits guard the DAL conventions and database behavior.
+
+Final illustrated theme artwork remains deferred; CSS placeholders are the shipped fallback. Label/focus/desktop-keyboard checks, provider auth, device installation, and Lighthouse against an authenticated deployment remain in the manual QA checklist.
 
 ---
 
@@ -411,7 +417,7 @@ Final theme artwork replacing placeholders. Accessibility audit (contrast in **e
 | A cross-user leak — the worst possible bug | `userId` only ever from the session; `server-only` DAL; scripted isolation audit in Phase 10 |
 | Editor bundle slows the writing screen | Editor loads only on the two writing routes; dynamic import; per-route JS budget |
 | Timezone bugs put an entry on the wrong day | `DATE` column, server-authoritative today, unit tests across DST and date-line boundaries |
-| Theme art inflates first paint | ≤120 KB budget per variant, AVIF, `blurDataURL`, only the active theme fetched |
+| Theme art inflates first paint | ≤120 KB budget per variant, AVIF/WebP, only the active theme fetched; the budget is enforced when assets land |
 
 ---
 

@@ -30,7 +30,13 @@ export function DayScreen({
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState<"clear" | "delete" | null>(null);
-  const [gone, setGone] = useState(false);
+  const [gone, setGone] = useState(initial.wordCount === 0 && initial.mood === null);
+  const [updatedAt, setUpdatedAt] = useState(initial.updatedAt);
+  const [mutationState, setMutationState] = useState<"idle" | "conflict" | "error">("idle");
+
+  function handleMutationFailure(status: string) {
+    setMutationState(status === "conflict" ? "conflict" : "error");
+  }
 
   if (editing) {
     return (
@@ -53,6 +59,28 @@ export function DayScreen({
   return (
     <div className="mt-6 flex flex-1 flex-col gap-6">
       {gone ? <p className="text-lg text-ink-muted">{prompt}</p> : children}
+      {mutationState !== "idle" ? (
+        <div className="rounded-card border border-line bg-surface-raised p-4" role="alert">
+          <p className="text-ink">
+            {mutationState === "conflict"
+              ? "This page changed on another device."
+              : "The page could not be changed."}
+          </p>
+          <p className="mt-1 text-sm text-ink-muted">
+            Reload the latest version before trying again.
+          </p>
+          <Button
+            type="button"
+            className="mt-3 font-ui"
+            onClick={() => {
+              setMutationState("idle");
+              router.refresh();
+            }}
+          >
+            Reload page
+          </Button>
+        </div>
+      ) : null}
       <div className="mt-auto flex flex-wrap gap-2">
         <Button type="button" className="font-ui" onClick={() => setEditing(true)}>
           Edit
@@ -66,10 +94,16 @@ export function DayScreen({
               pending={pending === "clear"}
               onConfirm={() => {
                 setPending("clear");
-                void clearEntryAction({ entryDate, updatedAt: initial.updatedAt }).then(() => {
+                setMutationState("idle");
+                void clearEntryAction({ entryDate, updatedAt }).then((result) => {
                   setPending(null);
-                  setGone(true);
-                  router.refresh();
+                  if (result.status === "saved") {
+                    setUpdatedAt(result.updatedAt);
+                    setGone(true);
+                    router.refresh();
+                    return;
+                  }
+                  handleMutationFailure(result.status);
                 });
               }}
               trigger={
@@ -86,12 +120,16 @@ export function DayScreen({
               pending={pending === "delete"}
               onConfirm={() => {
                 setPending("delete");
-                void deleteEntryAction({ entryDate, updatedAt: initial.updatedAt }).then((result) => {
+                setMutationState("idle");
+                void deleteEntryAction({ entryDate, updatedAt }).then((result) => {
                   setPending(null);
                   if (result.status === "saved") {
+                    setUpdatedAt(result.updatedAt);
                     setGone(true);
                     router.refresh();
+                    return;
                   }
+                  handleMutationFailure(result.status);
                 });
               }}
               trigger={

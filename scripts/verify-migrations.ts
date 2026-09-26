@@ -58,6 +58,14 @@ const checks: Check[] = [
       rows.length === 4 &&
       rows.every((r) => (r as { delete_rule: string }).delete_rule === "CASCADE"),
   },
+  {
+    label: "profile theme mode and lock consistency are constrained",
+    sql: `select constraint_name
+          from information_schema.table_constraints
+          where table_name = 'profiles'
+            and constraint_name in ('profiles_theme_mode_chk', 'profiles_locked_theme_chk')`,
+    expect: (rows) => rows.length === 2,
+  },
 ];
 
 async function main() {
@@ -92,6 +100,8 @@ async function main() {
   // Behavioural checks: the constraints must actually reject bad data.
   await db.exec(`insert into "user" (id, name, email, updated_at)
                  values ('u1', 'Test', 't@example.com', now())`);
+  await db.exec(`insert into profiles (user_id, display_name)
+                 values ('u1', 'Test')`);
   await db.exec(`insert into entries (user_id, entry_date, body_json)
                  values ('u1', '2026-09-17', '{}'::jsonb)`);
 
@@ -114,6 +124,14 @@ async function main() {
     "an unknown mood is rejected",
     `insert into entries (user_id, entry_date, body_json, mood)
      values ('u1', '2026-09-18', '{}'::jsonb, 'elated')`,
+  );
+  await rejects(
+    "an unknown profile theme mode is rejected",
+    `update profiles set theme_mode = 'sometimes' where user_id = 'u1'`,
+  );
+  await rejects(
+    "a locked profile without a theme is rejected",
+    `update profiles set theme_mode = 'locked', locked_theme_id = null where user_id = 'u1'`,
   );
 
   // And the cascade must actually cascade.

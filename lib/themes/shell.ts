@@ -40,6 +40,19 @@ export function focusFromPath(pathname: string, search: string, today: CivilDate
     return { kind: "month", date: { year: today.year, month: today.month, day: 1 } };
   }
 
+  const year = /^\/calendar\/(\d{4})$/.exec(pathname);
+  if (year) {
+    const viewedYear = Number(year[1]);
+    return {
+      kind: "month",
+      date: {
+        year: viewedYear,
+        month: viewedYear === today.year ? today.month : 1,
+        day: 1,
+      },
+    };
+  }
+
   const day = /^\/day\/(\d{4}-\d{2}-\d{2})$/.exec(pathname);
   if (day) {
     const parsed = parseIso(day[1] ?? "");

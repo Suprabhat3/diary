@@ -1,6 +1,6 @@
 # Diary — manual QA
 
-Phases 3 through 10 are in the app. This is the list of things that still need a person, a browser, and the real services. Automated checks already run are at the bottom.
+Phases 0 through 9 are implemented; Phase 10 automation is in place and final illustrated artwork is deferred. This is the list of checks that still need a person, a browser, or the real services. Automated gates are at the bottom.
 
 Nothing here needs a new environment variable. Use the existing `.env.local`.
 
@@ -47,6 +47,7 @@ Nothing here needs a new environment variable. Use the existing `.env.local`.
 - [ ] Year view jumps to a month. Written days show as dots. With nothing locked, each mini-month hints at its own season.
 - [ ] On a past page, the text is for reading until you tap Edit. Previous and Next skip empty days and land on written ones.
 - [ ] Open the same page on two browsers and save both. The second save should say the page changed elsewhere, and Reload should bring in the other version instead of silently overwriting it.
+- [ ] From the read-first past-day screen, try Clear or Delete after changing the same page elsewhere. The page must remain visible and offer Reload rather than pretending the stale action succeeded.
 
 ## Profile, themes, search
 
@@ -93,10 +94,14 @@ Optional WebP copies with the same names are the fallback. Theme ids match the r
 
 ## Already checked without a browser
 
+- `pnpm lint`
 - `pnpm typecheck`
-- `pnpm test` (33 tests: themes, dates, editor document, backup format, search snippets, rate limit)
-- `pnpm db:verify` (one page per day, bare date column, search index, mood check, cascade delete)
-- `pnpm audit:isolation` (diary reads and writes take the user from the session)
+- `pnpm test` (36 tests: themes, dates, editor document, backup format, search snippets, rate limit, service-worker cache policy)
+- `pnpm db:verify` (one page per day, bare date column, search index, mood and profile-theme checks, cascade delete)
+- `pnpm audit:isolation` (structural guard: session-derived ownership and server-only boundaries)
+- `pnpm audit:behavioral` (two-user reads, search, stale writes, import ownership, future dates, and cascade behavior in PGlite)
+- `pnpm check:contrast` (every theme in both system schemes)
 - `pnpm build`
+- `pnpm check:budgets` (editor-route chunks and final-art file sizes)
 
 Auth email, Google, a real phone install, and two-device conflict were not exercised here.

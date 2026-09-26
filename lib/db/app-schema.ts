@@ -44,39 +44,50 @@ export type HolidayCalendar = (typeof HOLIDAY_CALENDARS)[number];
  * Split from Better Auth's `user` table so that regenerating the auth schema
  * never touches product data.
  */
-export const profiles = pgTable("profiles", {
-  userId: text("user_id")
-    .primaryKey()
-    .references(() => user.id, { onDelete: "cascade" }),
+export const profiles = pgTable(
+  "profiles",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => user.id, { onDelete: "cascade" }),
 
-  displayName: text("display_name").notNull(),
+    displayName: text("display_name").notNull(),
 
-  // Month + day are all the birthday theme needs. Year is optional and is
-  // never used to compute age.
-  birthdayMonth: smallint("birthday_month"),
-  birthdayDay: smallint("birthday_day"),
-  birthdayYear: smallint("birthday_year"),
+    // Month + day are all the birthday theme needs. Year is optional and is
+    // never used to compute age.
+    birthdayMonth: smallint("birthday_month"),
+    birthdayDay: smallint("birthday_day"),
+    birthdayYear: smallint("birthday_year"),
 
-  // IANA zone. "Today" is derived from this on the server, never from the
-  // client clock -- see D5 in the implementation plan.
-  timezone: text("timezone").notNull().default("UTC"),
+    // IANA zone. "Today" is derived from this on the server, never from the
+    // client clock -- see D5 in the implementation plan.
+    timezone: text("timezone").notNull().default("UTC"),
 
-  themeMode: text("theme_mode").notNull().default("auto"),
-  lockedThemeId: text("locked_theme_id"),
+    themeMode: text("theme_mode").notNull().default("auto"),
+    lockedThemeId: text("locked_theme_id"),
 
-  holidayCalendars: text("holiday_calendars")
-    .array()
-    .notNull()
-    .default(sql`'{}'::text[]`),
+    holidayCalendars: text("holiday_calendars")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
 
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow()
-    .$onUpdate(() => new Date()),
-});
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    check("profiles_theme_mode_chk", sql`${table.themeMode} IN ('auto', 'locked')`),
+    check(
+      "profiles_locked_theme_chk",
+      sql`(${table.themeMode} = 'locked' AND ${table.lockedThemeId} IS NOT NULL)
+          OR (${table.themeMode} = 'auto' AND ${table.lockedThemeId} IS NULL)`,
+    ),
+  ],
+);
 
 /**
  * One diary page per user per calendar date.

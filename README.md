@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Diary
 
-## Getting Started
+A private, phone-first daily diary: one page per day, seasonal themes, calendar, search, backup, and installable PWA.
 
-First, run the development server:
+The implementation follows [docs/implementation-plan.md](docs/implementation-plan.md). Manual service and device checks live in [QA.md](QA.md).
+
+## Stack
+
+- Next.js 16, React 19, TypeScript, Tailwind CSS 4
+- Neon Postgres with Drizzle ORM
+- Better Auth with email/password and Google OAuth
+- Tiptap rich-text editor
+- pnpm 10.13.1
+
+## Local setup
+
+1. Install Node 22 and pnpm 10.13.1.
+2. Install dependencies:
+
+   ```bash
+   pnpm install
+   ```
+
+3. Copy `.env.example` to `.env.local` and configure Neon, Better Auth, Google, and Resend.
+4. Apply the migrations:
+
+   ```bash
+   pnpm db:migrate
+   ```
+
+5. Start development:
+
+   ```bash
+   pnpm dev
+   ```
+
+The local app uses `http://localhost:3000`. `BETTER_AUTH_URL` must match the origin, and Google’s redirect URI must be `http://localhost:3000/api/auth/callback/google`.
+
+## Database workflow
+
+Never edit generated migration metadata manually.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm db:generate  # generate migration from the Drizzle schema
+pnpm db:migrate   # apply migrations to DATABASE_URL
+pnpm db:verify    # apply and behavior-check all migrations in PGlite
+pnpm db:auth      # regenerate Better Auth's Drizzle schema
+pnpm db:studio    # open Drizzle Studio
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Verification
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Run these before opening a pull request:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm db:verify
+pnpm audit:isolation
+pnpm audit:behavioral
+pnpm check:contrast
+pnpm build
+pnpm check:budgets
+```
 
-## Learn More
+The GitHub Actions quality workflow runs the same gates. `check:budgets` checks built editor-route chunks when `.next` exists and enforces the 120 KB limit for final theme art.
 
-To learn more about Next.js, take a look at the following resources:
+## Privacy architecture
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Every diary read and write derives the owner from the server session; `userId` never crosses the client boundary.
+- Postgres enforces one entry per user and civil date.
+- The service worker caches public shell assets, fonts, icons, and theme art only. It never caches diary navigation responses, APIs, or Server Action writes.
+- Entry writes use `updated_at` conflict tokens to prevent silent cross-device overwrites.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Production and PWA checks
 
-## Deploy on Vercel
+```bash
+pnpm build
+pnpm start
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Use the production server for install/offline testing. Auth provider callbacks, password-reset email, physical-device installation, keyboard/focus behavior, and two-device conflicts remain manual checks in [QA.md](QA.md).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Final illustrated backgrounds are intentionally deferred. CSS placeholders ship now; future files belong under `public/themes/<theme-id>/` and are covered by the art budget.

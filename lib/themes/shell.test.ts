@@ -56,4 +56,15 @@ describe("focusFromPath", () => {
     });
     assert.equal(focusFromPath("/today", "", today).kind, "day");
   });
+
+  it("uses a month focus for year calendars", () => {
+    assert.deepEqual(focusFromPath("/calendar/2026", "", today), {
+      kind: "month",
+      date: { year: 2026, month: 9, day: 1 },
+    });
+    assert.deepEqual(focusFromPath("/calendar/2024", "", today), {
+      kind: "month",
+      date: { year: 2024, month: 1, day: 1 },
+    });
+  });
 });

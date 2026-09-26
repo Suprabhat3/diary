@@ -21,6 +21,8 @@ const profileSchema = z.object({
   holidayCalendars: z.array(z.enum(HOLIDAY_CALENDARS)),
 });
 
+const themeIdSchema = z.string().trim().min(1);
+
 export async function updateProfileAction(
   input: unknown,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
@@ -50,11 +52,15 @@ export async function updateProfileAction(
 }
 
 export async function wearThemeAction(
-  themeId: string,
+  input: unknown,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const session = await getSession();
   if (!session) return { ok: false, message: "Sign in again to save that." };
 
+  const parsed = themeIdSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: "That theme isn't available." };
+
+  const themeId = parsed.data;
   const theme = themeById(themeId);
   if (!theme || theme.id === "paper") {
     return { ok: false, message: "That theme isn't available." };
@@ -72,12 +78,15 @@ export async function wearThemeAction(
 }
 
 export async function lockThemeAction(
-  themeId: string,
+  input: unknown,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const session = await getSession();
   if (!session) return { ok: false, message: "Sign in again to save that." };
 
-  const result = await lockTheme(themeId);
+  const parsed = themeIdSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: "That theme isn't available." };
+
+  const result = await lockTheme(parsed.data);
   if (!result.ok) return result;
 
   const jar = await cookies();
