@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -80,14 +80,13 @@ function detailsFromForm(
 
 export function SignUpForm() {
   const router = useRouter();
-  const [timezone, setTimezone] = useState("UTC");
+  const [timezone, setTimezone] = useState(() => {
+    if (typeof window === "undefined") return "UTC";
+    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return detected && isIanaTimezone(detected) ? detected : "UTC";
+  });
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<"email" | "google" | null>(null);
-
-  useEffect(() => {
-    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (detected && isIanaTimezone(detected)) setTimezone(detected);
-  }, []);
 
   function storeDetails(form: HTMLFormElement, requireName: boolean): SignupDetails | null {
     const parsed = detailsFromForm(new FormData(form), requireName);

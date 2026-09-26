@@ -359,3 +359,8 @@ export function monthTheme(month: number): ThemeManifest {
   const id = MONTH_IDS[month - 1];
   return id ? themes[id] : themes.january;
 }
+
+/** Every theme a person can preview, wear, or lock. Paper is only the signed-out fallback. */
+export function wearableThemes(): ThemeManifest[] {
+  return Object.values(themes).filter((theme) => theme.id !== "paper");
+}

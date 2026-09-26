@@ -2,9 +2,11 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Newsreader } from "next/font/google";
 import { headers } from "next/headers";
 
+import { RegisterServiceWorker } from "@/components/pwa/register-sw";
 import { isNeutralChromePath } from "@/lib/auth/paths";
+import { getRequestTheme } from "@/lib/themes/active";
+import { chromeColor } from "@/lib/themes/chrome-colors";
 import { displayFontVariables } from "@/lib/themes/fonts";
-import { getActiveTheme } from "@/lib/themes/active";
 
 import "./globals.css";
 
@@ -39,22 +41,29 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  // The app runs standalone from a home screen, so it owns the notch and the
-  // home indicator. Panels read their insets via the pad-safe-* utilities.
-  viewportFit: "cover",
-  // Keep the writing area above the on-screen keyboard rather than letting the
-  // browser scroll the whole page out from under it.
-  interactiveWidget: "resizes-content",
-};
+export async function generateViewport(): Promise<Viewport> {
+  const pathname = (await headers()).get("x-diary-path") ?? "";
+  const neutral = isNeutralChromePath(pathname) || pathname === "/offline";
+  const colors = chromeColor(neutral ? "paper" : (await getRequestTheme()).theme.id);
+
+  return {
+    width: "device-width",
+    initialScale: 1,
+    viewportFit: "cover",
+    interactiveWidget: "resizes-content",
+    themeColor: [
+      { media: "(prefers-color-scheme: light)", color: colors.light },
+      { media: "(prefers-color-scheme: dark)", color: colors.dark },
+    ],
+  };
+}
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // Resolved on the server, so the first byte of HTML already carries the
   // right theme. Auth screens stay on paper. There is no client theme flash.
   const pathname = (await headers()).get("x-diary-path") ?? "";
-  const active = isNeutralChromePath(pathname) ? null : await getActiveTheme();
+  const neutral = isNeutralChromePath(pathname) || pathname === "/offline";
+  const active = neutral ? null : await getRequestTheme();
   const themeId = active?.theme.id ?? "paper";
 
   return (
@@ -65,6 +74,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        <RegisterServiceWorker />
         {children}
       </body>
     </html>

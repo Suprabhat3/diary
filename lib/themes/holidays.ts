@@ -1,4 +1,4 @@
-import { isLeapYear } from "@/lib/date/civil";
+import { daysInMonth, isLeapYear } from "@/lib/date/civil";
 
 import type { CivilDate, HolidayId, ThemeProfile } from "./types";
 
@@ -134,6 +134,34 @@ export function isBirthday(profile: ThemeProfile, date: CivilDate): boolean {
     date.day === 28 &&
     !isLeapYear(date.year)
   );
+}
+
+/** The birthday's day-of-month in this year, or null if the birthday is another month. */
+export function birthdayDayInMonth(
+  profile: ThemeProfile,
+  year: number,
+  month: number,
+): number | null {
+  const birthMonth = profile.birthdayMonth;
+  const birthDay = profile.birthdayDay;
+  if (birthMonth == null || birthDay == null || birthMonth !== month) return null;
+  if (birthMonth === 2 && birthDay === 29 && !isLeapYear(year)) return 28;
+  if (birthDay > daysInMonth(year, month)) return null;
+  return birthDay;
+}
+
+export function holidayMarksInMonth(
+  profile: ThemeProfile,
+  year: number,
+  month: number,
+): { day: number; id: HolidayId }[] {
+  const marks: { day: number; id: HolidayId }[] = [];
+  const total = daysInMonth(year, month);
+  for (let day = 1; day <= total; day += 1) {
+    const id = matchingHoliday(profile, { year, month, day });
+    if (id) marks.push({ day, id });
+  }
+  return marks;
 }
 
 export function matchingHoliday(profile: ThemeProfile, date: CivilDate): HolidayId | null {

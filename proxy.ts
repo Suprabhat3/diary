@@ -33,6 +33,7 @@ export function proxy(request: NextRequest) {
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-diary-path", pathname);
+  requestHeaders.set("x-diary-search", request.nextUrl.search);
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
 

@@ -144,6 +144,10 @@
  * Placeholder theme art. Real illustrations replace this later by sitting
  * in the same stack; the gradient, grain, and vignette are the stand-in.
  */
+.theme-photo {
+  opacity: 0.9;
+}
+
 .theme-wash {
   background-image:
     radial-gradient(80% 55% at 100% -10%, var(--accent-soft), transparent 70%),
@@ -207,4 +211,52 @@
 
 .theme-enter[data-motion="fade"] {
   animation: theme-fade 560ms ease;
+}
+
+.diary-prose p + p,
+.diary-prose h2,
+.diary-prose h3,
+.diary-prose ul,
+.diary-prose ol,
+.diary-prose blockquote {
+  margin-top: 0.9rem;
+}
+
+.diary-prose ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+
+.diary-prose ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+}
+
+.diary-prose blockquote {
+  border-left: 2px solid var(--line);
+  padding-left: 1rem;
+  color: var(--ink-muted);
+}
+
+.diary-prose h2,
+.diary-prose h3 {
+  font-family: var(--font-display);
+  line-height: 1.25;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  color: var(--ink-faint);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.tiptap :focus {
+  outline: none;
+}
+
+mark {
+  background: var(--accent-soft);
+  color: inherit;
 }

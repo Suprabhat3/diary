@@ -9,6 +9,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 <!-- END:nextjs-agent-rules -->
 
 # General rules
+- Never open browser to test things, just write the code and do basic test like type checking, etc.
 - Ask the following question to have a good understanding of the task
 - Never commit any changes until user specificly ask for it
 - Naver chnage package.json file directly, if you want to install something use pnpm i package name.
