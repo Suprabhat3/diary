@@ -28,9 +28,6 @@ if (env.NODE_ENV !== "production") {
   globalForDb.pool = pool;
 }
 
-export const db = drizzle(pool, {
-  schema,
-  logger: env.NODE_ENV === "development",
-});
+export const db = drizzle(pool, { schema });
 
 export type Db = typeof db;

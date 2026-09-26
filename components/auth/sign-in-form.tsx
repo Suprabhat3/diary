@@ -37,7 +37,9 @@ export function SignInForm({
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(
-    googleError ? "Google sign-in didn't finish. Try again." : null,
+    googleError
+      ? "Google sign-in didn't finish. Try again from this page."
+      : null,
   );
   const [pending, setPending] = useState<"email" | "google" | null>(null);
 

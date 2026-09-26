@@ -1,12 +1,17 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Newsreader } from "next/font/google";
+import { headers } from "next/headers";
+
+import { isNeutralChromePath } from "@/lib/auth/paths";
+import { displayFontVariables } from "@/lib/themes/fonts";
+import { getActiveTheme } from "@/lib/themes/active";
 
 import "./globals.css";
 
 /**
  * The body serif. Deliberately the SAME in every theme -- you should not have
  * to re-learn how your own diary reads each month. Themes carry their
- * personality in the display face instead (Phase 2).
+ * personality in the display face, swapped per theme.
  */
 const bodySerif = Newsreader({
   variable: "--font-body-serif",
@@ -45,18 +50,23 @@ export const viewport: Viewport = {
   interactiveWidget: "resizes-content",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
-  // `data-theme` is resolved on the SERVER, so the first byte of HTML already
-  // carries the right theme and there is no flash of the wrong one. Phase 0
-  // always serves the neutral fallback; Phase 2 replaces this with
-  // resolveTheme(profile, today).
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Resolved on the server, so the first byte of HTML already carries the
+  // right theme. Auth screens stay on paper. There is no client theme flash.
+  const pathname = (await headers()).get("x-diary-path") ?? "";
+  const active = isNeutralChromePath(pathname) ? null : await getActiveTheme();
+  const themeId = active?.theme.id ?? "paper";
+
   return (
     <html
       lang="en"
-      data-theme="paper"
-      className={`${bodySerif.variable} ${uiSans.variable} h-full antialiased`}
+      data-theme={themeId}
+      className={`${bodySerif.variable} ${uiSans.variable} ${displayFontVariables} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

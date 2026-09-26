@@ -12,7 +12,8 @@
     "db:studio": "drizzle-kit studio",
     "db:auth": "better-auth generate --config scripts/auth-schema.config.ts --output lib/db/auth-schema.ts",
     "typecheck": "tsc --noEmit",
-    "db:verify": "tsx scripts/verify-migrations.ts"
+    "db:verify": "tsx scripts/verify-migrations.ts",
+    "test": "tsx --test lib/themes/resolve.test.ts lib/date/civil.test.ts"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",

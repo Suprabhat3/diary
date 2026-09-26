@@ -21,6 +21,15 @@ export function isAuthPath(pathname: string): boolean {
   );
 }
 
+/** Auth screens stay on the neutral paper theme, including password reset. */
+export function isNeutralChromePath(pathname: string): boolean {
+  return (
+    isAuthPath(pathname) ||
+    pathname === "/reset-password" ||
+    pathname.startsWith("/reset-password/")
+  );
+}
+
 /**
  * Only same-origin paths. A `next` value of `//evil.example` or a scheme
  * would otherwise walk someone off the site after sign-in.

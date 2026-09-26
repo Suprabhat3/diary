@@ -10,10 +10,9 @@ export default async function SignInPage({
 }: {
   searchParams: Promise<{ next?: string; error?: string }>;
 }) {
-  const session = await getSession();
-  if (session) redirect("/today");
-
   const params = await searchParams;
+  const session = await getSession();
+  if (session && !params.error) redirect("/today");
 
   return (
     <>

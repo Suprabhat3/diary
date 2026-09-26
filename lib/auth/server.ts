@@ -25,6 +25,9 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
   trustedOrigins: [env.BETTER_AUTH_URL],
+  onAPIError: {
+    errorURL: "/sign-in",
+  },
   session: {
     // A persistent cookie, so closing the browser does not sign them out.
     expiresIn: 60 * 60 * 24 * 30,
@@ -44,6 +47,10 @@ export const auth = betterAuth({
     },
   },
   account: {
+    // Keep the OAuth state in an encrypted cookie. The database strategy
+    // writes a 10-minute verification row that this callback was not finding,
+    // which surfaced as `state_mismatch` and dumped the person on an error page.
+    storeStateStrategy: "cookie",
     accountLinking: {
       enabled: true,
       trustedProviders: ["google"],

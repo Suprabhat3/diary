@@ -23,14 +23,17 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (signedIn && isAuthPath(pathname)) {
+  const authError = request.nextUrl.searchParams.get("error");
+  if (signedIn && isAuthPath(pathname) && !authError) {
     const url = request.nextUrl.clone();
     url.pathname = AFTER_AUTH_PATH;
     url.search = "";
     return NextResponse.redirect(url);
   }
 
-  return NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-diary-path", pathname);
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {
